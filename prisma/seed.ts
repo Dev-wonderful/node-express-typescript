@@ -3,6 +3,15 @@ import process from "process";
 
 const prisma = new PrismaClient();
 async function main() {
+  const estate = await prisma.estates.create({
+    data: {
+      name: "Jakande",
+      address: "Jakande road",
+      description: "An estate for all",
+      status: "ACTIVE",
+    },
+  });
+  console.log("estate:", estate);
   const roles = await prisma.roles.createMany({
     data: [{ name: "admin" }, { name: "resident" }, { name: "superadmin" }],
   });

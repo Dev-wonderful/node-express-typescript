@@ -19,8 +19,8 @@
     "commitlint": "commitlint --edit",
     "check-format": "prettier --check .",
     "check-lint": "eslint . --ext ts --ext tsx --ext js",
-    "db:dev:rm": "docker-compose rm dev-db -s -f -v",
-    "db:dev:up": "docker-compose up dev-db -d --remove-orphans"
+    "docker:watch": "docker compose watch",
+    "docker:build": "docker-compose up"
   },
   "repository": "https://github.com/hngprojects/hng_boilerplate_expressjs",
   "license": "ISC",
