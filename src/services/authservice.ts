@@ -1,4 +1,3 @@
-import { Repository } from "typeorm";
 import jwt from "jsonwebtoken";
 import config from "../config";
 import {
@@ -7,8 +6,9 @@ import {
   HttpError,
   ResourceNotFound,
 } from "../middleware";
-import { User, Profile, Otp } from "../models";
-import { IAuthService, IUserLogin, IUserSignUp, UserType } from "../types";
+import { Users, Profiles, Tokens, PrismaClient, Prisma } from "@prisma/client";
+import prisma, { UsersModel, UserStatus } from "../models";
+import { IAuthService, IUserLogin, IUserSignUp, UserRoles } from "../types";
 import {
   comparePassword,
   generateAccessToken,
@@ -17,34 +17,34 @@ import {
   hashPassword,
   verifyToken,
 } from "../utils";
-import AppDataSource from "../data-source";
 import { OtpService } from ".";
-import { Sendmail } from "../utils/mail";
-import { compilerOtp } from "../views/welcome";
 
 export class AuthService implements IAuthService {
-  private usersRepository: Repository<User>;
-  private profilesRepository: Repository<Profile>;
+  private usersRepository: Prisma.UsersDelegate;
+  private profilesRepository: Prisma.ProfilesDelegate;
   private otpService: OtpService;
 
   constructor() {
-    this.usersRepository = AppDataSource.getRepository(User);
-    this.profilesRepository = AppDataSource.getRepository(Profile);
-    this.otpService = new OtpService(
-      AppDataSource.getRepository(Otp),
-      this.usersRepository,
-    );
+    this.usersRepository = UsersModel.Query();
+    this.profilesRepository = prisma.profiles;
+    this.otpService = new OtpService();
   }
 
-  public async signUp(payload: IUserSignUp): Promise<{
-    message: string;
-    user: Partial<User>;
-    access_token: string;
-  }> {
-    const { first_name, last_name, email, password, admin_secret } = payload;
+  public async signUp(payload: IUserSignUp) {
+    const {
+      first_name,
+      last_name,
+      middle_name,
+      phone_number,
+      email,
+      password,
+      estate,
+      avatarUrl,
+      address,
+    } = payload;
 
     try {
-      const userExists = await this.usersRepository.findOne({
+      const userExists = await this.usersRepository.findFirst({
         where: { email },
       });
 
@@ -53,47 +53,47 @@ export class AuthService implements IAuthService {
       }
 
       const hashedPassword = await hashPassword(password);
-      const user = new User();
-      user.first_name = first_name;
-      user.last_name = last_name;
-      user.email = email;
-      user.password = hashedPassword;
-      user.is_active = true;
-      user.user_type =
-        admin_secret && admin_secret === config.SUPER_SECRET_KEY
-          ? UserType.SUPER_ADMIN
-          : admin_secret === config.ADMIN_SECRET_KEY
-            ? UserType.ADMIN
-            : UserType.USER;
+      const newUser = {
+        name: `${first_name} ${last_name}`,
+        email,
+        password: hashedPassword,
+        status: UserStatus.INACTIVE,
+        role: UserRoles.USER,
+        estate,
+      };
+      const user = new UsersModel(newUser);
+      await user.save();
 
-      const profile = await this.profilesRepository.save({
-        email: email,
-        username: "",
-        profile_pic_url: "",
-      });
-      user.profile = profile;
-
-      await this.usersRepository.save(user);
+      const profile = {
+        firstName: first_name,
+        lastName: last_name,
+        middleName: middle_name || "",
+        avatar: avatarUrl,
+        phoneNumber: phone_number,
+        address,
+        userId: user.id,
+      };
+      await user.addProfile(profile);
 
       const access_token = await generateAccessToken(user.id);
 
       const otp = await this.otpService.createOtp(user.id);
+      console.log("OTP: ", otp);
 
-      await Sendmail({
-        from: `Boilerplate <support@boilerplate.com>`,
-        to: email,
-        subject: "OTP VERIFICATION",
-        html: compilerOtp(parseInt(otp.token), user.first_name),
-      });
+      // await Sendmail({
+      //   from: `Boilerplate <support@boilerplate.com>`,
+      //   to: email,
+      //   subject: "OTP VERIFICATION",
+      //   html: compilerOtp(parseInt(otp.token), user.first_name),
+      // });
 
       const userResponse = {
         id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,
+        first_name: user.profile.firstName,
+        last_name: user.profile.lastName,
         email: user.email,
-        role: user.user_type,
-        avatar_url: user.profile.profile_pic_url,
-        user_name: user.profile.username,
+        role: user.role,
+        avatar_url: user.profile.avatar,
       };
 
       return {
@@ -110,31 +110,30 @@ export class AuthService implements IAuthService {
     }
   }
 
-  public async verifyEmail(
-    token: string,
-    email: string,
-  ): Promise<{
-    message: string;
-    access_token: string;
-  }> {
+  public async verifyEmail(token: string, email: string) {
     try {
-      const user = await this.usersRepository.findOne({
-        where: { email },
+      console.log("Email: ", email);
+      const user = await this.usersRepository.findFirst({
+        where: { email, token: { token } },
       });
 
-      if (!user) {
-        throw new ResourceNotFound("User not found");
-      }
-      const otp = await this.otpService.verifyOtp(user.id, token);
-      if (!otp) {
-        throw new BadRequest("Invalid OTP");
-      }
+      console.log("User: ", user);
 
       if (!user) {
         throw new ResourceNotFound("User not found");
       }
-      user.is_verified = true;
-      await this.usersRepository.save(user);
+      // const otp = await this.otpService.verifyOtp(user.id, token);
+      // if (!otp) {
+      //   throw new BadRequest("Invalid OTP");
+      // }
+
+      // if (!user) {
+      //   throw new ResourceNotFound("User not found");
+      // }
+      await this.usersRepository.update({
+        where: { id: user.id },
+        data: { status: UserStatus.ACTIVE },
+      });
 
       const access_token = await generateAccessToken(user.id);
 
@@ -150,16 +149,13 @@ export class AuthService implements IAuthService {
     }
   }
 
-  public async login(payload: IUserLogin): Promise<{
-    message: string;
-    user: Partial<User>;
-    access_token: string;
-  }> {
+  public async login(payload: IUserLogin) {
     const { email, password } = payload;
 
     try {
-      const user = await this.usersRepository.findOne({
+      const user = await UsersModel.Query().findFirst({
         where: { email },
+        include: { profile: true },
       });
 
       if (!user) {
@@ -176,12 +172,11 @@ export class AuthService implements IAuthService {
 
       const userResponse = {
         id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,
+        first_name: user.profile.firstName,
+        last_name: user.profile.lastName,
         email: user.email,
-        role: user.user_type,
-        avatar_url: user.profile.profile_pic_url,
-        user_name: user.profile.username,
+        role: user.role,
+        avatar_url: user.profile.avatar,
       };
 
       return {

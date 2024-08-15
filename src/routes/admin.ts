@@ -2,4 +2,4 @@ import { Router } from "express";
 
 const adminRoute = Router();
 
-export { adminRoute };
+export default adminRoute;

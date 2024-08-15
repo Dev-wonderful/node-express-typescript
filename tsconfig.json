@@ -13,7 +13,7 @@
     "sourceMap": true,
     "skipLibCheck": true,
     "typeRoots": ["./node_modules/@types", "src/types"],
-    "types": ["jest"],
+    "types": ["jest", "node"],
     "resolveJsonModule": true
   },
   "types": ["node", "jest"],

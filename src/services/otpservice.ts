@@ -1,17 +1,14 @@
-import { Repository } from "typeorm";
-import { Otp, User } from "../models";
+import prisma from "../models";
+import { Tokens, Users } from "@prisma/client";
 import { generateNumericOTP } from "../utils";
 import { Expired, ResourceNotFound } from "../middleware";
+// import { Prisma } from "@prisma/client";
+// import prisma from "../models";
 
 export class OtpService {
-  constructor(
-    private otpRepository: Repository<Otp>,
-    private userRepository: Repository<User>,
-  ) {}
-
-  async createOtp(user_id: string): Promise<Otp | undefined> {
+  async createOtp(user_id: string) {
     try {
-      const user = await this.userRepository.findOne({
+      const user = await prisma.users.findFirst({
         where: { id: user_id },
       });
       if (!user) {
@@ -21,14 +18,15 @@ export class OtpService {
       const token = generateNumericOTP(6);
       const otp_expires = new Date(Date.now() + 15 * 60 * 1000);
 
-      const otp = this.otpRepository.create({
-        token,
-        expiry: otp_expires,
-        user,
+      const otp = await prisma.tokens.create({
+        data: {
+          token,
+          expiringAt: otp_expires,
+          user: { connect: { id: user_id } },
+        },
       });
 
-      await this.otpRepository.save(otp);
-      return otp;
+      return otp.token;
     } catch (error) {
       return;
     }
@@ -36,7 +34,7 @@ export class OtpService {
 
   async verifyOtp(user_id: string, token: string): Promise<boolean> {
     try {
-      const otp = await this.otpRepository.findOne({
+      const otp = await prisma.tokens.findFirst({
         where: { token, user: { id: user_id } },
       });
 
@@ -44,7 +42,7 @@ export class OtpService {
         throw new ResourceNotFound("Invalid OTP");
       }
 
-      if (otp.expiry < new Date()) {
+      if (otp.expiringAt < new Date()) {
         throw new Expired("OTP has expired");
       }
 

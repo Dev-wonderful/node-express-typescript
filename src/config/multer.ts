@@ -1,47 +1,37 @@
-import multer from "multer";
-import { v2 as cloudinary } from "cloudinary";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
-import cloudinaryConfig from "./cloudinary";
+import multer, { StorageEngine } from "multer";
 import * as dotenv from "dotenv";
+import path from "path";
+import fs from "fs";
+import appRootPath from "app-root-path";
+import { FileValidationError } from "../middleware";
 dotenv.config();
 
-interface CustomParams {
-  folder: string;
-  allowedFormats: string[];
+const FILE_SIZE = 1024 * 1024 * 2; // 2MB
+const ROOT = appRootPath.toString();
+
+export const diskstorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, path.join(ROOT, "uploads/")),
+  filename: (req, file, cb) => {
+    console.log("file-a", file);
+    return cb(null, req.body.fileName || file.originalname);
+  },
+});
+
+export const memStorage = multer.memoryStorage();
+
+if (!fs.existsSync(path.join(ROOT, "uploads/"))) {
+  fs.mkdirSync(path.join(ROOT, "uploads/"));
 }
 
-const cloudinaryConfigOptions = cloudinaryConfig(
-  process.env["CLOUDINARY_CLOUD_NAME"] as string,
-  process.env["CLOUDINARY_API_KEY"] as string,
-  process.env["CLOUDINARY_API_SECRET"] as string,
-);
-
-cloudinary.config(cloudinaryConfigOptions);
-
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: "images",
-    allowedFormats: ["jpg", "png", "jpeg"],
-  } as CustomParams,
-});
-
-const FILE_SIZE = 1024 * 1024 * 2; // 2MB
-
-export const multerConfig = multer({
-  storage,
-  limits: {
-    fileSize: FILE_SIZE,
-  },
-  fileFilter: (_req, file, cb) => {
-    if (!file.mimetype.startsWith("image/")) {
-      return cb(new Error("Only images are allowed"));
-    }
-    if (file.size > FILE_SIZE) {
-      return cb(new Error("Image should not be more than 4MB"));
-    }
-    cb(null, true);
-  },
-});
-
-export { cloudinary };
+export default function generateUploadMiddleware(storageType: StorageEngine) {
+  return multer({
+    storage: storageType,
+    fileFilter: (_req, file, cb) => {
+      if (!file.mimetype.startsWith("image/")) {
+        return cb(new FileValidationError("Only images are allowed"));
+      }
+      cb(null, true);
+    },
+    limits: { fileSize: FILE_SIZE },
+  });
+}

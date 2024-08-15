@@ -3,9 +3,13 @@ import { z } from "zod";
 const signUpSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
   last_name: z.string().min(1, "Last name is required"),
+  middle_name: z.string().min(1).optional(),
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters long"),
-  admin_secret: z.string().optional(),
+  address: z.string().min(1, "Address is required"),
+  phone_number: z.string().min(1, "Phone number is required"),
+  estate: z.string().min(1, "Estate is required"),
+  avatarUrl: z.string().min(1, "Avatar is required"),
 });
 
 const otpSchema = z.object({

@@ -17,9 +17,8 @@ const sendJsonResponse = (
   accessToken?: string,
 ) => {
   const responsePayload: any = {
-    status: statusCode,
+    success: true,
     message,
-    status_code: statusCode,
     data,
   };
 

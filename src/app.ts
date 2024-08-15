@@ -1,11 +1,10 @@
-import "reflect-metadata";
 import cors from "cors";
-import express, { Express, Request, Response } from "express";
+import express, { Express } from "express";
 import swaggerUi from "swagger-ui-express";
 import { errorHandler, routeNotFound } from "./middleware";
-import swaggerSpec from "./config/swaggerConfig";
 import { Limiter } from "./utils";
-import { authRoute, adminRoute } from "./routes";
+import v1Router from "./routes";
+import logger from "./utils/logger";
 
 const app: Express = express();
 app.options("*", cors());
@@ -25,18 +24,26 @@ app.use(
 app.use(Limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.get("/", (req: Request, res: Response) => {
-  res.send({ message: "I am the express API responding for team panther" });
-});
-app.get("/api/v1", (req: Request, res: Response) => {
-  res.json({ message: "I am the express API responding for team Panther" });
+app.use((req, res, next) => {
+  res.on("finish", () => {
+    logger.info(
+      `${req.method} ${req.originalUrl} ${res.statusCode} - ${req.ip}\n`,
+    );
+  });
+  next();
 });
 
-app.use("/api/v1", authRoute);
-app.use("/api/v1", adminRoute);
+const options = {
+  explorer: true,
+  swaggerOptions: {
+    urls: [{ url: "/api/v1/docs/swagger.yaml", name: "version 1" }],
+  },
+};
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(null, options));
 
-app.use(routeNotFound);
+app.use("/api/v1", v1Router);
+
+// app.use(routeNotFound);
 app.use(errorHandler);
 
 export default app;

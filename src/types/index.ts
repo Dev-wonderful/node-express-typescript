@@ -1,14 +1,14 @@
-import { User } from "../models";
+import { Profiles, Users } from "@prisma/client";
 
-export enum UserType {
-  SUPER_ADMIN = "super-admin",
+export enum UserRoles {
+  SUPER_ADMIN = "superadmin",
   ADMIN = "admin",
-  USER = "vendor",
+  USER = "resident",
 }
 
 export interface IUserService {
-  getUserById(id: string): Promise<User | null>;
-  getAllUsers(): Promise<User[]>;
+  getUserById(id: string): Promise<Users | null>;
+  getAllUsers(): Promise<Users[]>;
 }
 
 export interface IOrgService {}
@@ -16,13 +16,20 @@ export interface IOrgService {}
 export interface IRole {
   role: "super_admin" | "admin" | "user";
 }
+type OptionalValues = "createdAt" | "updatedAt" | "id";
+export type NewProfile = Omit<Profiles, OptionalValues>;
+export type NewUser = Omit<Users, OptionalValues | "deletedAt">;
 
 export interface IUserSignUp {
   first_name: string;
   last_name: string;
+  middle_name?: string;
+  phone_number: string;
   email: string;
   password: string;
-  admin_secret?: string;
+  estate: string;
+  avatarUrl: string;
+  address: string;
 }
 export interface IUserLogin {
   email: string;
@@ -69,12 +76,12 @@ export interface IOrganisationService {
     payload: ICreateOrganisation,
     userId: string,
   ): Promise<unknown>;
-  removeUser(org_id: string, user_id: string): Promise<User | null>;
+  removeUser(org_id: string, user_id: string): Promise<Users | null>;
 }
 
 declare module "express-serve-static-core" {
   interface Request {
-    user?: User;
+    user?: Users;
   }
 }
 

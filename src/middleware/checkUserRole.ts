@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from "express";
-import { UserType } from "../types";
-import AppDataSource from "../data-source";
+import { UserRoles } from "../types";
 import jwt from "jsonwebtoken";
-import { User } from "../models";
+import { Users } from "@prisma/client";
+import prisma from "../models";
 
-export const checkPermissions = (roles: UserType[]) => {
+export const checkPermissions = (roles: UserRoles[]) => {
   return async (
-    req: Request & { user?: User },
+    req: Request & { user?: Users },
     res: Response,
     next: NextFunction,
   ) => {
@@ -19,12 +19,12 @@ export const checkPermissions = (roles: UserType[]) => {
           .status(401)
           .json({ status: "error", message: "Access denied. Invalid token" });
       }
-      const userRepository = AppDataSource.getRepository(User);
-      const user = await userRepository.findOne({
+      const userRepository = prisma.users;
+      const user = await userRepository.findFirst({
         where: { id: decodedToken.userId },
       });
 
-      if (!user || !roles.includes(user.user_type)) {
+      if (!user || !roles.includes(user.role as UserRoles)) {
         return res
           .status(403)
           .json({ status: "error", message: "Access denied. Not an admin" });

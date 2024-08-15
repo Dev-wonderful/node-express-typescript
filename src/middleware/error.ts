@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
-import config from "../config";
-import log from "../utils/logger";
+// import config from "../config";
+import logger from "../utils/logger";
 
 class HttpError extends Error {
   status_code: number;
@@ -61,9 +61,20 @@ class ServerError extends HttpError {
   }
 }
 
+export class FileValidationError extends HttpError {
+  constructor(message: string) {
+    super(400, message);
+    this.name = "FileValidationError";
+  }
+}
+
 const routeNotFound = (req: Request, res: Response, next: NextFunction) => {
   const message = `Route not found: ${req.originalUrl}`;
-  res.status(404).json({ success: false, status: 404, message });
+  logger.error(
+    `${req.method} ${req.originalUrl} ${404} - ${req.ip} - Route not found`,
+  );
+  res.status(404).json({ success: false, message });
+  next();
 };
 
 const errorHandler = (
@@ -73,15 +84,14 @@ const errorHandler = (
   _next: NextFunction,
 ) => {
   const { success, status_code, message } = err;
-  const cleanedMessage = message.replace(/"/g, "");
 
-  if (config.NODE_ENV === "development") {
-    log.error("Error", err);
-  }
+  logger.error(
+    `${_req.method} ${_req.originalUrl} ${status_code || 500} - ${_req.ip} - ${message}`,
+  );
+
   res.status(status_code).json({
     success,
-    status_code,
-    message: cleanedMessage,
+    message: "server error, this will be resolved shortly!",
   });
 };
 
