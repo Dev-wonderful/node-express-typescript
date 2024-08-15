@@ -1,6 +1,4 @@
-yarn
-
-yarn lint-staged
+npx lint-staged
 
 
-yarn build
+npm run build
