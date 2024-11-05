@@ -1,10 +1,3 @@
-import {
-  Prisma,
-  PrismaClient,
-  Profiles,
-  USER_STATUS,
-  Users,
-} from "@prisma/client";
 import { NewProfile, NewUser } from "../types";
 
 export enum UserStatus {
@@ -24,32 +17,20 @@ export default class UsersModel {
   updatedAt: Date;
   deletedAt: Date;
   estate: string;
-  status: USER_STATUS;
-  profile: Profiles;
-  private static _prisma: PrismaClient;
+  profile: any;
+  static db: any;
+  db: any;
 
-  constructor({ name, email, password, role, estate, status }: NewUser) {
+  constructor({ name, email, password, role, estate }: NewUser) {
     this.name = name;
     this.email = email;
     this.password = password;
     this.role = role;
     this.estate = estate;
-    this.status = status;
   }
 
-  static set prisma(prismaClient: PrismaClient) {
-    if (!(prismaClient instanceof PrismaClient)) {
-      throw new Error("Invalid PrismaClient");
-    }
-    this._prisma = prismaClient;
-  }
-
-  // static get prisma () {
-  // 	return this._prisma;
-  // }
-
-  Query = () => UsersModel._prisma.users;
-  static Query = () => this._prisma.users;
+  Query = () => UsersModel.db;
+  static Query = () => this.db;
 
   save = async () => {
     const user = await this.Query().create({
@@ -59,7 +40,7 @@ export default class UsersModel {
         password: this.password,
         role: this.role,
         estate: this.estate,
-        status: this.status,
+        // status: this.status,
       },
     });
     this.createdAt = user.createdAt;

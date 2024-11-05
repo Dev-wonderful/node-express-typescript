@@ -1,5 +1,3 @@
-import prisma from "../models";
-import { Tokens, Users } from "@prisma/client";
 import { generateNumericOTP } from "../utils";
 import { Expired, ResourceNotFound } from "../middleware";
 // import { Prisma } from "@prisma/client";

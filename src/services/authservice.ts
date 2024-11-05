@@ -6,8 +6,7 @@ import {
   HttpError,
   ResourceNotFound,
 } from "../middleware";
-import { Users, Profiles, Tokens, PrismaClient, Prisma } from "@prisma/client";
-import prisma, { UsersModel, UserStatus } from "../models";
+import { UsersModel, UserStatus } from "../models";
 import { IAuthService, IUserLogin, IUserSignUp, UserRoles } from "../types";
 import {
   comparePassword,
@@ -20,13 +19,13 @@ import {
 import { OtpService } from ".";
 
 export class AuthService implements IAuthService {
-  private usersRepository: Prisma.UsersDelegate;
-  private profilesRepository: Prisma.ProfilesDelegate;
+  private usersRepository: any;
+  // private profilesRepository: Prisma.ProfilesDelegate;
   private otpService: OtpService;
 
   constructor() {
     this.usersRepository = UsersModel.Query();
-    this.profilesRepository = prisma.profiles;
+    // this.profilesRepository = prisma.profiles;
     this.otpService = new OtpService();
   }
 
